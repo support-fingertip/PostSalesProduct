@@ -1,18 +1,168 @@
-# List files or directories below to ignore them when running force:source:push, force:source:pull, and force:source:status
+# =============================================================================
+# PRODUCTION-READY .forceignore
+# Excludes problematic metadata from deployments
+# =============================================================================
 
+# Generated package files
 package.xml
+**/package.xml
 
-# LWC configuration files
+# =============================================================================
+# LAYOUTS - Frequently cause deployment failures
+# =============================================================================
+
+# Exclude all Case layouts (they often have field reference issues)
+**/layouts/Case-*.layout-meta.xml
+
+# Exclude standard object layouts that cause issues
+**/layouts/*Marketing*.layout-meta.xml
+**/layouts/*Sales*.layout-meta.xml
+**/layouts/*Support*.layout-meta.xml
+
+# If you need to deploy specific layouts, be explicit:
+# !**/layouts/Account-My_Custom_Layout.layout-meta.xml
+
+# =============================================================================
+# PROFILES - Always problematic, manage separately
+# =============================================================================
+
+# Exclude all profiles (they're massive and cause conflicts)
+**/profiles/**
+**/*.profile-meta.xml
+
+# Admin profile (never deploy this)
+**/profiles/Admin.profile-meta.xml
+
+# =============================================================================
+# STANDARD METADATA - Don't modify these
+# =============================================================================
+
+# Object translations (org-specific)
+**/objectTranslations/**
+
+# Standard app menus
+**/appMenus/**
+
+# Connected apps (OAuth configs)
+**/connectedApps/**
+
+# Settings (org-specific configs)
+**/settings/**
+
+# =============================================================================
+# LWC CONFIGURATION & TEST FILES
+# =============================================================================
+
+# LWC config files
 **/jsconfig.json
 **/.eslintrc.json
 
-# LWC Jest
+# Jest test files
 **/__tests__/**
+**/__mocks__/**
 
-# Admin Profile
-**/profiles/Admin.profile-meta.xml
+# Source maps
+**/lwc/**/*.css.map
+**/lwc/**/*.js.map
 
-# Ignore specific metadata
-**/appMenus/**
-**/objectTranslations/**
-**/connectedApps/**
+# =============================================================================
+# REPORTS & DASHBOARDS - Usually org-specific
+# =============================================================================
+
+# Uncomment if you don't want to deploy reports/dashboards
+# **/reports/**
+# **/dashboards/**
+
+# =============================================================================
+# LARGE OR PROBLEMATIC METADATA TYPES
+# =============================================================================
+
+# Documents (often too large)
+**/documents/**
+
+# Territory management (complex dependencies)
+**/territory2Models/**
+**/territory2Types/**
+
+# Communities/Experience Cloud (very large)
+# **/experiences/**
+# **/networks/**
+# **/sites/**
+
+# =============================================================================
+# DESTRUCTIVE CHANGES
+# =============================================================================
+
+# Destructive change files (handle separately)
+destructiveChanges.xml
+destructiveChangesPre.xml
+destructiveChangesPost.xml
+
+# =============================================================================
+# LOCAL DEVELOPMENT FILES
+# =============================================================================
+
+# Salesforce DX local files
+.sfdx/
+.sf/
+.localdevserver/
+
+# Logs
+*.log
+logs/
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Node modules
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build artifacts
+dist/
+build/
+*.zip
+
+# Auth files (NEVER commit these!)
+authfile.txt
+*.key
+*.crt
+*.pem
+.env
+.env.local
+
+# Deployment artifacts
+deployment-result.json
+changed-files.txt
+delta-package/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# =============================================================================
+# ADD YOUR CUSTOM EXCLUSIONS BELOW
+# =============================================================================
+
+# Example: Exclude specific custom object
+# **/objects/My_Problematic_Object__c/**
+
+# Example: Exclude specific field
+# **/objects/Account/fields/Problematic_Field__c.field-meta.xml
+
+# Example: Exclude inactive flow versions
+# **/flows/*-*.flow-meta.xml
