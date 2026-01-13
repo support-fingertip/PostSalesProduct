@@ -1,0 +1,129 @@
+<template>
+    <div class="attachment-row slds-p-around_small slds-border_bottom">
+        <div class="slds-grid slds-gutters slds-grid_vertical-align-start">
+            <!-- Row Number -->
+            <div class="slds-col slds-size_1-of-12">
+                <span class="slds-badge">{rowNumber}</span>
+            </div>
+            
+            <!-- Attachment Name -->
+            <div class="slds-col slds-size_2-of-12">
+                <lightning-input
+                    label="Display Name"
+                    value={attachmentName}
+                    placeholder="e.g., Invoice"
+                    required
+                    onchange={handleNameChange}>
+                </lightning-input>
+            </div>
+            
+            <!-- Attachment Type -->
+            <div class="slds-col slds-size_2-of-12">
+                <lightning-combobox
+                    label="Type"
+                    value={attachmentType}
+                    options={attachmentTypeOptions}
+                    onchange={handleTypeChange}>
+                </lightning-combobox>
+            </div>
+            
+            <!-- Type-specific Fields -->
+            <div class="slds-col slds-size_4-of-12">
+                <!-- VF Page Fields -->
+                <template if:true={showVfPageFields}>
+                    <div class="slds-grid slds-gutters">
+                        <div class="slds-col slds-size_2-of-3">
+                            <lightning-combobox
+                                label="Visualforce Page"
+                                value={vfPageName}
+                                options={vfPageOptions}
+                                placeholder="Select VF Page..."
+                                required
+                                onchange={handleVfPageChange}>
+                            </lightning-combobox>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <lightning-input
+                                label="Param Name"
+                                value={vfPageParam}
+                                placeholder="id"
+                                onchange={handleVfPageParamChange}>
+                            </lightning-input>
+                        </div>
+                    </div>
+                </template>
+                
+                <!-- Static Document Fields -->
+                <template if:true={showDocumentFields}>
+                    <lightning-input
+                        label="Document ID"
+                        value={documentId}
+                        placeholder="ContentDocument ID..."
+                        required
+                        onchange={handleDocumentIdChange}>
+                    </lightning-input>
+                </template>
+            </div>
+            
+            <!-- Options -->
+            <div class="slds-col slds-size_2-of-12">
+                <div class="slds-grid slds-grid_vertical-align-center slds-wrap">
+                    <lightning-input
+                        type="checkbox"
+                        label="Default"
+                        checked={isDefaultChecked}
+                        onchange={handleDefaultCheckedChange}
+                        class="slds-m-right_small">
+                    </lightning-input>
+                    <lightning-input
+                        type="checkbox"
+                        label="Required"
+                        checked={isRequired}
+                        onchange={handleRequiredChange}>
+                    </lightning-input>
+                </div>
+            </div>
+            
+            <!-- Delete -->
+            <div class="slds-col slds-size_1-of-12 slds-text-align_right">
+                <!-- Changed:  Use getter showDeleteButton -->
+                <template if:true={showDeleteButton}>
+                    <lightning-button-icon
+                        icon-name="utility:delete"
+                        variant="bare"
+                        alternative-text="Delete"
+                        onclick={handleDelete}
+                        class="slds-m-top_medium">
+                    </lightning-button-icon>
+                </template>
+            </div>
+        </div>
+        
+        <!-- File Name Pattern (Second Row) -->
+        <div class="slds-grid slds-gutters slds-m-top_small">
+            <div class="slds-col slds-size_1-of-12"></div>
+            <div class="slds-col slds-size_10-of-12">
+                <div class="slds-grid slds-grid_vertical-align-end">
+                    <div class="slds-col slds-grow">
+                        <lightning-input
+                            label="File Name Pattern"
+                            value={fileNamePattern}
+                            placeholder="e.g., Invoice_{! Name}.pdf"
+                            field-level-help="Use merge fields like {!Name} for dynamic file names"
+                            onchange={handleFileNamePatternChange}>
+                        </lightning-input>
+                    </div>
+                    <div class="slds-col slds-no-flex slds-m-left_small">
+                        <c-email-merge-field-picker
+                            object-name={objectApiName}
+                            button-label=""
+                            button-variant="neutral"
+                            oninsert={handleInsertMergeField}>
+                        </c-email-merge-field-picker>
+                    </div>
+                </div>
+            </div>
+            <div class="slds-col slds-size_1-of-12"></div>
+        </div>
+    </div>
+</template>

@@ -1,0 +1,154 @@
+<aura:component controller="QuoteConfiguratorController"
+                implements="flexipage:availableForRecordHome,force:hasRecordId"
+                access="global">
+    
+    <aura:attribute name="recordId" type="Id"/>
+    <aura:attribute name="unitFields" type="Object[]"/>
+    <aura:attribute name="operators" type="String[]"/>
+    <aura:attribute name="functions" type="String[]"/>
+    <aura:attribute name="formula" type="String" default=""/>
+    <aura:attribute name="hasChanges" type="Boolean" default="false"/>
+    <aura:attribute name="selectedField" type="String" default=""/>
+    
+    <!-- Undo/Redo Attributes -->
+    <aura:attribute name="history" type="List" default="[]"/> 
+    <aura:attribute name="historyPos" type="Integer" default="-1"/>
+    
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}"/>
+    
+    <lightning:card >
+        
+        <lightning:combobox
+                            label="Insert Unit Field"
+                            placeholder="Select a Unit field"
+                            value="{!v.selectedField}"
+                            options="{!v.unitFields}"
+                            onchange="{!c.insertField}"
+                            />
+        
+        <div class="editorWrapper slds-m-top_small">
+            <div class="editorToolbar slds-p-around_xx-small slds-grid slds-wrap slds-grid_vertical-align-center">
+                <!-- Operators -->
+                <div class="slds-m-right_small">
+                    <aura:iteration items="{!v.operators}" var="op">
+                        <lightning:button
+                                          label="{!op}"
+                                          value="{!op}"
+                                          variant="neutral"
+                                          class="slds-m-right_xx-small slds-m-bottom_xx-small"
+                                          onclick="{!c.insertOperator}"
+                                          />
+                    </aura:iteration>
+                </div>
+                
+                <!-- Functions -->
+                <div>
+                    <aura:iteration items="{!v.functions}" var="fn">
+                        <lightning:button
+                                          label="{!fn}"
+                                          value="{!fn}"
+                                          variant="neutral"
+                                          class="slds-m-right_xx-small slds-m-bottom_xx-small"
+                                          onclick="{!c.insertFunction}"
+                                          />
+                    </aura:iteration>
+                </div>
+                
+                <div class="slds-m-right_small">
+                    <lightning:buttonGroup>
+                        <lightning:button label="1" value="1" onclick="{!c.insertNumber}"/>
+                        
+                        <lightning:button label="2" value="2" onclick="{!c.insertNumber}"/>
+                        
+                        <lightning:button label="3" value="3" onclick="{!c.insertNumber}"/>
+                        
+                        <lightning:button label="4" value="4" onclick="{!c.insertNumber}"/>
+                        
+                        <lightning:button label="5" value="5" onclick="{!c.insertNumber}"/>
+                        
+                        <lightning:button label="6" value="6" onclick="{!c.insertNumber}"/>
+                        
+                        <lightning:button label="7" value="7" onclick="{!c.insertNumber}"/>
+                        
+                        <lightning:button label="8" value="8" onclick="{!c.insertNumber}"/>
+                        
+                        <lightning:button label="9" value="9" onclick="{!c.insertNumber}"/>
+                        
+                        <lightning:button label="0" value="0" onclick="{!c.insertNumber}"/>
+                        
+                        <lightning:button label="." value="." onclick="{!c.insertNumber}"/>
+                    </lightning:buttonGroup>
+                </div>
+            </div>
+            
+            <!-- Contenteditable editor -->
+            <!--<div aura:id="editor"
+                 class="editorArea slds-p-around_small"
+                 contenteditable="true"
+                 onkeyup="{!c.syncFormula}"
+                 onclick="{!c.rememberSelection}"
+                 onmouseup="{!c.rememberSelection}">
+            </div>-->
+            
+            <div aura:id="editor"
+                 class="editorArea slds-p-around_small"
+                 contenteditable="true"
+                 lang="zxx" 
+                 role="textbox" 
+                 spellcheck="false"
+                 autocorrect="off"
+                 autocapitalize="off"
+                 data-gramm="false"
+                 data-enable-grammarly="false"
+                 aria-multiline="true"
+                 onkeyup="{!c.syncFormula}"
+                 onclick="{!c.rememberSelection}"
+                 onmouseup="{!c.rememberSelection}">
+            </div>
+            
+            <div class="editorToolbar slds-p-around_xx-small slds-grid slds-wrap slds-grid_vertical-align-center">
+                <!-- Undo/Redo Buttons -->
+                <div class="slds-m-right_small">
+                    <lightning:buttonGroup>
+                        <lightning:button 
+                                          label="Back" 
+                                          iconName="utility:undo" 
+                                          onclick="{!c.handleUndo}" 
+                                          disabled="{!v.historyPos le 0}"/>
+                        <lightning:button 
+                                          label="Forward" 
+                                          iconName="utility:redo" 
+                                          onclick="{!c.handleRedo}" 
+                                          disabled="{!v.historyPos == (v.history.length - 1)}"/>
+                    </lightning:buttonGroup>
+                    
+                    <lightning:buttonGroup>
+                        <lightning:button 
+                                          label="Space" 
+                                          title="Insert Space"
+                                          iconName="utility:space" 
+                                          onclick="{!c.handleSpace}" 
+                                          class="slds-m-right_small"/>
+                        
+                        <lightning:button 
+                                          label="Backspace" 
+                                          title="Delete Character"
+                                          iconName="utility:back" 
+                                          onclick="{!c.handleBackspace}" 
+                                          variant="destructive-text"/>
+                    </lightning:buttonGroup>
+                </div>
+                
+            </div>
+        </div>
+        
+        <div class="slds-m-top_medium slds-align_absolute-center">
+            <lightning:button
+                              label="Save Formula"
+                              variant="brand"
+                              onclick="{!c.saveFormula}"
+                              disabled="{! !v.hasChanges}" 
+                              />
+        </div>
+    </lightning:card>
+</aura:component>

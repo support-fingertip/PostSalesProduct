@@ -1,0 +1,30 @@
+.spinner-container {
+    min-height: 200px;
+}
+
+.icon-success {
+    --sds-c-icon-color-foreground-default: #2e844a;
+}
+
+.icon-warning {
+    --sds-c-icon-color-foreground-default: #fe9339;
+}
+
+.completed-box {
+    background-color: #f3faf3;
+    border-left: 4px solid #2e844a;
+}
+
+.progress-box {
+    background-color: #fef8f0;
+    border-left:  4px solid #fe9339;
+}
+
+.locked-box {
+    background-color: #f4f4f4;
+    border-left: 4px solid #706e6b;
+}
+
+.slds-modal__footer {
+    background-color: #f3f2f2;
+}

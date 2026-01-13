@@ -1,0 +1,137 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="slds-is-relative slds-p-around_large">
+            
+        </div>
+    </template>
+
+    <template if:false={isLoading}>
+        <template if:false={hasAnyProcesses}>
+            <div class="slds-p-around_medium slds-text-align_center">
+                <lightning-icon icon-name="utility:warning" size="large" variant="warning"></lightning-icon>
+                <p class="slds-m-top_small slds-text-heading_small">No Approval Processes Configured</p>
+                <p class="slds-text-body_regular slds-text-color_weak">
+                    Please contact your administrator to configure approval processes for this object.
+                </p>
+            </div>
+        </template>
+
+        <template if:true={hasAnyProcesses}>
+            <div class="slds-p-around_medium">
+                
+                <template if:true={hasAvailable}>
+                    <div class="slds-m-bottom_medium">
+                        <p class="slds-text-heading_small slds-m-bottom_small">
+                            Available for Submission
+                        </p>
+                        <lightning-radio-group
+                            name="processSelection"
+                            label="Select Approval Process"
+                            options={availableOptions}
+                            value={selectedConfigId}
+                            onchange={handleProcessSelection}
+                            type="radio"
+                            variant="label-hidden">
+                        </lightning-radio-group>
+                    </div>
+                </template>
+
+                <template if:true={showApproverPreview}>
+                    <div class="slds-box slds-m-bottom_medium">
+                        <p class="slds-text-title_bold slds-m-bottom_small">Approver Preview</p>
+                        <template if:true={isLoadingPreview}>
+                            
+                        </template>
+                        <template if:false={isLoadingPreview}>
+                            <template for:each={approverPreviews} for:item="preview">
+                                <div key={preview.stepNumber} class="slds-grid slds-m-bottom_x-small">
+                                    <div class="slds-col slds-size_1-of-3">
+                                        <span class="slds-badge slds-badge_lightest">Step {preview.stepNumber}</span>
+                                        <span class="slds-m-left_x-small">{preview.stepName}</span>
+                                    </div>
+                                    <div class="slds-col slds-size_2-of-3">
+                                        <template if:true={preview.isFound}>
+                                            <lightning-icon icon-name="utility:success" size="xx-small" variant="success" class="slds-m-right_xx-small"></lightning-icon>
+                                            <span>{preview.approverName}</span>
+                                        </template>
+                                        <template if:false={preview.isFound}>
+                                            <lightning-icon icon-name="utility:warning" size="xx-small" variant="warning" class="slds-m-right_xx-small"></lightning-icon>
+                                            <span class="slds-text-color_weak">{preview.message}</span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+
+                    <lightning-textarea
+                        label="Comments (Optional)"
+                        value={comments}
+                        onchange={handleCommentsChange}
+                        placeholder="Enter any comments for the approvers..."
+                        max-length="500"
+                        class="slds-m-bottom_small">
+                    </lightning-textarea>
+                </template>
+
+                <template if:true={hasCompleted}>
+                    <div class="slds-m-top_medium">
+                        <p class="slds-text-heading_small slds-m-bottom_small">
+                            Completed
+                        </p>
+                        <template for:each={completedList} for:item="process">
+                            <div key={process.configId} class="slds-box slds-box_x-small slds-m-bottom_x-small slds-theme_success">
+                                <p class="slds-text-title_bold">{process.processLabel}</p>
+                                <p class="slds-text-body_small">{process.statusMessage}</p>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <template if:true={hasInProgress}>
+                    <div class="slds-m-top_medium">
+                        <p class="slds-text-heading_small slds-m-bottom_small">
+                            In Progress
+                        </p>
+                        <template for:each={inProgressList} for:item="process">
+                            <div key={process.configId} class="slds-box slds-box_x-small slds-m-bottom_x-small slds-theme_warning">
+                                <p class="slds-text-title_bold">{process.processLabel}</p>
+                                <p class="slds-text-body_small">{process.statusMessage}</p>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <template if:true={hasLocked}>
+                    <div class="slds-m-top_medium">
+                        <p class="slds-text-heading_small slds-m-bottom_small">
+                            Locked (Prerequisites Not Met)
+                        </p>
+                        <template for:each={lockedList} for:item="process">
+                            <div key={process.configId} class="slds-box slds-box_x-small slds-m-bottom_x-small slds-theme_shade">
+                                <p class="slds-text-title_bold">{process.processLabel}</p>
+                                <p class="slds-text-body_small">{process.statusMessage}</p>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+            </div>
+        </template>
+    </template>
+
+    <div class="slds-p-around_medium slds-border_top">
+        <lightning-button 
+            variant="neutral" 
+            label="Cancel" 
+            onclick={handleCancel}>
+        </lightning-button>
+        <lightning-button 
+            variant="brand" 
+            label="Submit for Approval" 
+            onclick={handleSubmit}
+            disabled={isSubmitDisabled}
+            class="slds-m-left_small">
+        </lightning-button>
+    </div>
+</template>

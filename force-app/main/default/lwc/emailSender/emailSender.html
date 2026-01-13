@@ -1,0 +1,361 @@
+<template>
+    <!-- Send Email Button -->
+    <lightning-button
+        label={buttonLabel}
+        variant={buttonVariant}
+        icon-name={buttonIconName}
+        onclick={handleOpenModal}
+        disabled={isLoading}>
+    </lightning-button>
+    
+    <!-- Main Modal -->
+    <template if:true={showModal}>
+        <section class="slds-modal slds-fade-in-open slds-modal_large" role="dialog" aria-modal="true">
+            <div class="slds-modal__container">
+                <!-- Header -->
+                <header class="slds-modal__header header-gradient">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        class="slds-modal__close"
+                        alternative-text="Close"
+                        onclick={handleCloseModal}>
+                    </lightning-button-icon>
+                    <h2 class="slds-modal__title slds-text-color_inverse">
+                        <lightning-icon icon-name="utility:email" size="small" class="slds-m-right_small"></lightning-icon>
+                        Send Email
+                    </h2>
+                </header>
+                
+                <!-- Content -->
+                <div class="slds-modal__content slds-p-around_none">
+                    <!-- Custom Loading Animation -->
+                    <template if:true={isLoading}>
+                        <div class="custom-loading-container">
+                            <div class="loading-animation">
+                                <div class="email-envelope">
+                                    <svg width="80" height="60" viewBox="0 0 80 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <rect x="5" y="10" width="70" height="45" rx="3" stroke="#0176D3" stroke-width="2" fill="white"/>
+                                        <path d="M5 15 L40 35 L75 15" stroke="#0176D3" stroke-width="2" stroke-linecap="round" class="envelope-flap"/>
+                                        <circle cx="25" cy="30" r="2" fill="#0176D3" class="dot dot-1"/>
+                                        <circle cx="40" cy="30" r="2" fill="#0176D3" class="dot dot-2"/>
+                                        <circle cx="55" cy="30" r="2" fill="#0176D3" class="dot dot-3"/>
+                                    </svg>
+                                </div>
+                                <p class="loading-text">Loading email template...</p>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <template if:false={isLoading}>
+                        <!-- Template Selection -->
+                        <div class="slds-p-around_medium slds-border_bottom template-selector">
+                            <lightning-combobox
+                                label="Select Email Template"
+                                value={selectedTemplateId}
+                                options={templateOptions}
+                                placeholder="Choose a template or write custom email..."
+                                onchange={handleTemplateChange}>
+                            </lightning-combobox>
+                        </div>
+                        
+                        <!-- Email Composer (Only show after template selection) -->
+                        <template if:true={isTemplateSelected}>
+                            <div class="email-composer">
+                                <!-- From & Reply To -->
+                                <div class="slds-grid slds-gutters slds-p-horizontal_medium slds-p-top_medium">
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-combobox
+                                            label="From"
+                                            value={fromAddressId}
+                                            options={orgWideEmails}
+                                            onchange={handleFromAddressChange}>
+                                        </lightning-combobox>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-2">
+                                        <lightning-input
+                                            type="email"
+                                            label="Reply To"
+                                            value={replyTo}
+                                            placeholder="Optional reply-to address"
+                                            onchange={handleReplyToChange}>
+                                        </lightning-input>
+                                    </div>
+                                </div>
+                                
+                                <!-- Recipients Section -->
+                                <div class="recipients-section slds-p-horizontal_medium slds-p-top_medium">
+                                    <!-- TO Recipients -->
+                                    <div class="recipient-group slds-m-bottom_small">
+                                        <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_x-small">
+                                            <span class="recipient-label">To: </span>
+                                            <div class="recipient-pills slds-col slds-grow">
+                                                <template for:each={toRecipients} for:item="recipient">
+                                                    <lightning-pill 
+                                                        key={recipient.key}
+                                                        label={recipient.email}
+                                                        data-id={recipient.id}
+                                                        onremove={handleRemoveToRecipient}>
+                                                        <template if:true={recipient.isRequired}>
+                                                            <lightning-icon icon-name="utility:lock" size="x-small"></lightning-icon>
+                                                        </template>
+                                                    </lightning-pill>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <template if:true={allowAdditionalRecipients}>
+                                            <div class="slds-grid slds-gutters add-recipient">
+                                                <div class="slds-col slds-grow">
+                                                    <lightning-input
+                                                        type="email"
+                                                        data-id="new-to-email"
+                                                        placeholder="Add recipient email..."
+                                                        variant="label-hidden">
+                                                    </lightning-input>
+                                                </div>
+                                                <div class="slds-col slds-no-flex">
+                                                    <lightning-button-icon
+                                                        icon-name="utility:add"
+                                                        alternative-text="Add"
+                                                        onclick={handleAddToRecipient}>
+                                                    </lightning-button-icon>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    
+                                    <!-- CC Recipients -->
+                                    <template if:true={showCcSection}>
+                                        <div class="recipient-group slds-m-bottom_small">
+                                            <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_x-small">
+                                                <span class="recipient-label">CC:</span>
+                                                <div class="recipient-pills slds-col slds-grow">
+                                                    <template for:each={ccRecipients} for:item="recipient">
+                                                        <lightning-pill 
+                                                            key={recipient.key}
+                                                            label={recipient.email}
+                                                            data-id={recipient.id}
+                                                            onremove={handleRemoveCcRecipient}>
+                                                            <template if:true={recipient.isRequired}>
+                                                                <lightning-icon icon-name="utility:lock" size="x-small"></lightning-icon>
+                                                            </template>
+                                                        </lightning-pill>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <template if:true={allowAdditionalRecipients}>
+                                                <div class="slds-grid slds-gutters add-recipient">
+                                                    <div class="slds-col slds-grow">
+                                                        <lightning-input
+                                                            type="email"
+                                                            data-id="new-cc-email"
+                                                            placeholder="Add CC email..."
+                                                            variant="label-hidden">
+                                                        </lightning-input>
+                                                    </div>
+                                                    <div class="slds-col slds-no-flex">
+                                                        <lightning-button-icon
+                                                            icon-name="utility:add"
+                                                            alternative-text="Add"
+                                                            onclick={handleAddCcRecipient}>
+                                                        </lightning-button-icon>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    
+                                    <!-- BCC Recipients -->
+                                    <template if:true={showBccSection}>
+                                        <div class="recipient-group slds-m-bottom_small">
+                                            <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_x-small">
+                                                <span class="recipient-label">BCC:</span>
+                                                <div class="recipient-pills slds-col slds-grow">
+                                                    <template for:each={bccRecipients} for:item="recipient">
+                                                        <lightning-pill 
+                                                            key={recipient.key}
+                                                            label={recipient.email}
+                                                            data-id={recipient.id}
+                                                            onremove={handleRemoveBccRecipient}>
+                                                            <template if:true={recipient.isRequired}>
+                                                                <lightning-icon icon-name="utility:lock" size="x-small"></lightning-icon>
+                                                            </template>
+                                                        </lightning-pill>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <template if:true={allowAdditionalRecipients}>
+                                                <div class="slds-grid slds-gutters add-recipient">
+                                                    <div class="slds-col slds-grow">
+                                                        <lightning-input
+                                                            type="email"
+                                                            data-id="new-bcc-email"
+                                                            placeholder="Add BCC email..."
+                                                            variant="label-hidden">
+                                                        </lightning-input>
+                                                    </div>
+                                                    <div class="slds-col slds-no-flex">
+                                                        <lightning-button-icon
+                                                            icon-name="utility:add"
+                                                            alternative-text="Add"
+                                                            onclick={handleAddBccRecipient}>
+                                                        </lightning-button-icon>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                                
+                                <!-- Subject -->
+                                <div class="slds-p-horizontal_medium slds-p-top_small">
+                                    <lightning-input
+                                        label="Subject"
+                                        value={subject}
+                                        required
+                                        onchange={handleSubjectChange}>
+                                    </lightning-input>
+                                </div>
+                                
+                                <!-- Body -->
+                                <div class="slds-p-horizontal_medium slds-p-top_small">
+                                    <div class="slds-form-element">
+                                        <label class="slds-form-element__label">
+                                            <abbr class="slds-required" title="required">*</abbr>
+                                            Email Body
+                                        </label>
+                                        <lightning-input-rich-text
+                                            value={body}
+                                            onchange={handleBodyChange}>
+                                        </lightning-input-rich-text>
+                                    </div>
+                                </div>
+                                
+                                <!-- Attachments Section -->
+                                <template if:true={hasAttachments}>
+                                    <div class="attachments-section slds-p-around_medium slds-m-top_medium slds-border_top">
+                                        <div class="slds-text-title_bold slds-m-bottom_small">
+                                            <lightning-icon icon-name="utility:attach" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                            Template Attachments ({selectedAttachmentCount} selected)
+                                        </div>
+                                        <div class="attachment-list">
+                                            <template for:each={attachments} for:item="att">
+                                                <div key={att.id} class="attachment-item slds-grid slds-grid_vertical-align-center slds-p-around_x-small">
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        checked={att.isSelected}
+                                                        disabled={att.isRequired}
+                                                        data-id={att.id}
+                                                        onchange={handleAttachmentToggle}
+                                                        variant="label-hidden">
+                                                    </lightning-input>
+                                                    <lightning-icon icon-name="doctype:pdf" size="small" class="slds-m-horizontal_small"></lightning-icon>
+                                                    <span class="slds-col slds-grow">{att.fileName}</span>
+                                                    <template if:true={att.isRequired}>
+                                                        <lightning-badge label="Required" class="slds-m-left_small"></lightning-badge>
+                                                    </template>
+                                                    <template if:true={att.previewUrl}>
+                                                        <a href={att.previewUrl} target="_blank" class="slds-m-left_small" title="Preview">
+                                                            <lightning-icon icon-name="utility:preview" size="x-small"></lightning-icon>
+                                                        </a>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                                
+                                <!-- File Upload Section -->
+                                <template if:true={allowFileUpload}>
+                                    <div class="upload-section slds-p-around_medium slds-border_top">
+                                        <div class="slds-text-title_bold slds-m-bottom_small">
+                                            <lightning-icon icon-name="utility:upload" size="x-small" class="slds-m-right_x-small"></lightning-icon>
+                                            Upload Additional Files
+                                        </div>
+                                        
+                                        <lightning-file-upload
+                                            label="Drag files here or click to upload"
+                                            name="fileUploader"
+                                            record-id={recordId}
+                                            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif"
+                                            multiple
+                                            onuploadfinished={handleFileUpload}>
+                                        </lightning-file-upload>
+                                        
+                                        <!-- Uploaded Files List -->
+                                        <template if:true={hasUploadedFiles}>
+                                            <div class="uploaded-files-list slds-m-top_small">
+                                                <template for:each={uploadedFiles} for:item="file">
+                                                    <div key={file.documentId} class="uploaded-file-item slds-grid slds-grid_vertical-align-center slds-p-around_x-small">
+                                                        <lightning-icon icon-name="doctype:attachment" size="small" class="slds-m-right_small"></lightning-icon>
+                                                        <span class="slds-col slds-grow">{file.name}</span>
+                                                        <lightning-button-icon
+                                                            icon-name="utility:close"
+                                                            variant="bare"
+                                                            size="small"
+                                                            data-id={file.documentId}
+                                                            alternative-text="Remove"
+                                                            onclick={handleRemoveUploadedFile}>
+                                                        </lightning-button-icon>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        
+                        <!-- No Template Selected Message -->
+                        <template if:false={isTemplateSelected}>
+                            <div class="slds-p-around_large slds-text-align_center">
+                                <div class="slds-illustration slds-illustration_small">
+                                    <lightning-icon icon-name="utility:email" size="large" class="slds-m-bottom_medium"></lightning-icon>
+                                    <h3 class="slds-text-heading_medium">Select a Template</h3>
+                                    <p class="slds-text-body_regular slds-m-top_small">
+                                        Choose an email template from the dropdown above, or select "Custom Email" to write your own.
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+                </div>
+                
+                <!-- Footer -->
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        label="Cancel"
+                        onclick={handleCloseModal}>
+                    </lightning-button>
+                    <template if:true={isTemplateSelected}>
+                        <lightning-button
+                            label="Preview"
+                            icon-name="utility:preview"
+                            onclick={handlePreview}
+                            class="slds-m-left_small">
+                        </lightning-button>
+                        <lightning-button
+                            label="Send"
+                            variant="brand"
+                            icon-name="utility:email"
+                            onclick={handleSend}
+                            disabled={isSending}
+                            class="slds-m-left_small">
+                        </lightning-button>
+                    </template>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+    
+    <!-- Preview Modal -->
+    <template if:true={showPreviewModal}>
+        <c-email-preview-modal
+            email-data={previewEmailData}
+            is-loading={isSending}
+            onclose={handleClosePreview}
+            onedit={handleBackToEdit}
+            onsend={handleSend}>
+        </c-email-preview-modal>
+    </template>
+</template>

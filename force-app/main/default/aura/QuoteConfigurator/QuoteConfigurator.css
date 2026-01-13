@@ -1,0 +1,44 @@
+.THIS .editorWrapper {
+    border: 1px solid #d8dde6;
+    border-radius: .25rem;
+    background: #fff;
+}
+
+.THIS .editorToolbar {
+    border-bottom: 1px solid #d8dde6;
+    background: #f3f2f2;
+}
+
+.THIS .editorFooter {
+    border-top: 1px solid #d8dde6;
+    background: #f3f2f2;
+}
+
+/* UPDATED CSS RULE FOR EDITOR AREA */
+.THIS .editorArea {
+    min-height: 140px;
+    padding: 8px;
+    outline: none; /* Removes the default blue focus ring, we handle focus style below */
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: monospace;
+    font-size: 14px; /* Ensure font size is large enough for visible cursor */
+    line-height: 1.5; /* Ensure line height allows cursor to fit */
+    
+    /* FORCE CURSOR VISIBILITY */
+    color: #000000 !important;       /* Text color Black */
+    caret-color: #000000 !important; /* Blinking Cursor color Black */
+    cursor: text;                    /* Mouse pointer becomes I-beam */
+    
+    display: block;
+    width: 100%;
+    
+    /* Fix for empty div cursor issues */
+    -webkit-user-modify: read-write-plaintext-only; 
+}
+
+/* Visual cue when focused */
+.THIS .editorArea:focus {
+    background-color: #fafafa;
+    box-shadow: inset 0 0 0 1px #dddbda; /* Simulates SLDS input focus border */
+}

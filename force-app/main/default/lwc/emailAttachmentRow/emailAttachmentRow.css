@@ -1,0 +1,11 @@
+.attachment-row {
+    background: #fafafa;
+}
+
+.attachment-row:hover {
+    background: #f3f3f3;
+}
+
+lightning-input[type="checkbox"] {
+    --slds-c-checkbox-sizing-border: 1px;
+}

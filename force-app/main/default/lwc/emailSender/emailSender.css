@@ -1,0 +1,141 @@
+.header-gradient {
+    background: linear-gradient(135deg, #1e3a5f, #2d5a87);
+}
+
+.template-selector {
+    background: #f8f9fa;
+}
+
+.email-composer {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.recipient-label {
+    width: 50px;
+    font-weight: 600;
+    color: #706e6b;
+    flex-shrink: 0;
+}
+
+.recipient-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.recipient-group {
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.add-recipient {
+    margin-top: 8px;
+}
+
+.attachment-item,
+.uploaded-file-item {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    margin-bottom: 4px;
+}
+
+.attachments-section,
+.upload-section {
+    background: #f8f9fa;
+}
+
+.slds-illustration {
+    padding: 2rem;
+}
+
+lightning-pill {
+    margin: 2px;
+}
+
+/* Custom Loading Animation Styles */
+.custom-loading-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.loading-animation {
+    text-align: center;
+}
+
+.email-envelope {
+    animation: float 3s ease-in-out infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-20px);
+    }
+}
+
+.envelope-flap {
+    animation: flap 2s ease-in-out infinite;
+    transform-origin: 40px 15px;
+}
+
+@keyframes flap {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}
+
+.dot {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.dot-1 {
+    animation-delay: 0s;
+}
+
+.dot-2 {
+    animation-delay: 0.3s;
+}
+
+.dot-3 {
+    animation-delay: 0.6s;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        r: 2;
+    }
+    50% {
+        opacity: 0.3;
+        r: 3;
+    }
+}
+
+.loading-text {
+    color: #0176D3;
+    font-size: 16px;
+    font-weight: 500;
+    margin-top: 20px;
+    animation: fadeInOut 2s ease-in-out infinite;
+}
+
+@keyframes fadeInOut {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}

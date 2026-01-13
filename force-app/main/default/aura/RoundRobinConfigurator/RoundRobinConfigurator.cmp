@@ -1,0 +1,102 @@
+<aura:component controller="RoundRobinController" implements="force:appHostable">
+    <aura:attribute name="buckets" type="List" />
+    <aura:attribute name="configData" type="Map" />
+    <aura:attribute name="newBucket" type="Round_Robin__c" default="{'sobjectType':'Round_Robin__c', 'Customer_Type__c':'Both', 'Is_Active__c':true}" />
+    
+    <aura:attribute name="preSalesUsers" type="List" default="[]" />
+    <aura:attribute name="salesUsers" type="List" default="[]" />
+    <aura:attribute name="cpUsers" type="List" default="[]" />
+    <aura:attribute name="postSalesUsers" type="List" default="[]" />
+    
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+
+    <div class="slds-box slds-theme_default">
+        <h1 class="slds-text-heading_medium slds-m-bottom_medium">Round Robin Configurator</h1>
+
+        <div class="slds-grid slds-gutters">
+            <div class="slds-col slds-size_1-of-3">
+                <lightning:card title="Matching Filters" iconName="utility:filterList">
+                    <div class="slds-p-around_small">
+                        <lightning:input label="Bucket Name" value="{!v.newBucket.Name}" required="true"/>
+                        
+                        <label class="slds-form-element__label slds-m-top_small">Project</label>
+                        <lightning:recordEditForm objectApiName="Round_Robin__c">
+                            <lightning:inputField fieldName="Project__c" value="{!v.newBucket.Project__c}" variant="label-hidden"/>
+                        </lightning:recordEditForm>
+
+                        <lightning:select label="Zone" value="{!v.newBucket.Zone__c}" class="slds-m-top_small">
+                            <option value="">-- Any Zone --</option>
+                            <aura:iteration items="{!v.configData.zones}" var="z"><option value="{!z.value}">{!z.label}</option></aura:iteration>
+                        </lightning:select>
+
+                        <lightning:select label="Source" value="{!v.newBucket.Source__c}" class="slds-m-top_small">
+                            <option value="">-- Any Source --</option>
+                            <aura:iteration items="{!v.configData.sources}" var="s"><option value="{!s.value}">{!s.label}</option></aura:iteration>
+                        </lightning:select>
+
+                        <lightning:select label="Residency" value="{!v.newBucket.Customer_Type__c}" class="slds-m-top_small">
+                            <option value="Both">Both (Indian &amp; NRI)</option>
+                            <option value="Indian">Indian Only</option>
+                            <option value="NRI">NRI Only</option>
+                        </lightning:select>
+                    </div>
+                </lightning:card>
+            </div>
+
+            <div class="slds-col slds-size_2-of-3">
+                <lightning:card title="Member Categories" iconName="utility:user">
+                    <lightning:tabset variant="scoped">
+                        <lightning:tab label="Pre-Sales" id="Pre-Sales">
+                            <lightning:dualListbox options="{!v.configData.users}" value="{!v.preSalesUsers}" label="Users"/>
+                        </lightning:tab>
+                        <lightning:tab label="Sales" id="Sales">
+                            <lightning:dualListbox options="{!v.configData.users}" value="{!v.salesUsers}" label="Users"/>
+                        </lightning:tab>
+                        <lightning:tab label="Channel Partner" id="CP">
+                            <lightning:dualListbox options="{!v.configData.users}" value="{!v.cpUsers}" label="Users"/>
+                        </lightning:tab>
+                        <lightning:tab label="Post-Sales" id="Post-Sales">
+                            <lightning:dualListbox options="{!v.configData.users}" value="{!v.postSalesUsers}" label="Users"/>
+                        </lightning:tab>
+                    </lightning:tabset>
+                    <div class="slds-p-around_small slds-text-align_right">
+                        <lightning:button variant="brand" label="Save Bucket" onclick="{!c.handleSave}" iconName="utility:save"/>
+                    </div>
+                </lightning:card>
+            </div>
+        </div>
+
+        <!-- Table with all filter fields -->
+        <div class="slds-m-top_large">
+            <h2 class="slds-text-heading_small slds-m-bottom_small">Existing Buckets</h2>
+            <table class="slds-table slds-table_bordered">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Project</th>
+                        <th>Zone</th>
+                        <th>Source</th>
+                        <th>Residency</th>
+                        <th>Agents</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <aura:iteration items="{!v.buckets}" var="b">
+                        <tr>
+                            <td><b>{!b.Name}</b></td>
+                            <td>{!b.Project__r.Name || '--'}</td>
+                            <td>{!b.Zone__c || '--'}</td>
+                            <td>{!b.Source__c || '--'}</td>
+                            <td>{!b.Customer_Type__c}</td>
+                            <td>{!b.Round_Robin_Members__r.length}</td>
+                            <td>
+                                <lightning:buttonIcon iconName="utility:edit" onclick="{!c.handleEdit}" value="{!b}" variant="bare"/>
+                            </td>
+                        </tr>
+                    </aura:iteration>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</aura:component>
