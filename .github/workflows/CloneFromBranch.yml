@@ -1,0 +1,113 @@
+name: Sync Branch from Main
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Branch to sync (will get latest from main)'
+        required: true
+        type: string
+      sync_type:
+        description: 'Sync method'
+        required: true
+        type: choice
+        options:
+          - merge
+          - rebase
+        default: 'merge'
+
+jobs:
+  sync-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      # ---------------------------------------------------------
+      # 1️⃣ Checkout repository
+      # ---------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ---------------------------------------------------------
+      # 2️⃣ Configure Git
+      # ---------------------------------------------------------
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # ---------------------------------------------------------
+      # 3️⃣ Fetch and Sync
+      # ---------------------------------------------------------
+      - name: Sync branch from main
+        run: |
+          TARGET_BRANCH="${{ github.event.inputs.target_branch }}"
+          SYNC_TYPE="${{ github.event.inputs.sync_type }}"
+          
+          echo "🔄 Syncing branch: $TARGET_BRANCH"
+          echo "📍 Sync type: $SYNC_TYPE"
+          
+          # Fetch all branches
+          git fetch origin
+          
+          # Check if target branch exists
+          if ! git ls-remote --heads origin "$TARGET_BRANCH" | grep -q "$TARGET_BRANCH"; then
+            echo "❌ Error: Branch '$TARGET_BRANCH' does not exist"
+            exit 1
+          fi
+          
+          # Checkout target branch
+          git checkout "$TARGET_BRANCH"
+          git pull origin "$TARGET_BRANCH"
+          
+          # Get current commit for comparison
+          BEFORE_SYNC=$(git rev-parse HEAD)
+          
+          # Sync based on method
+          if [ "$SYNC_TYPE" == "rebase" ]; then
+            echo "🔀 Rebasing $TARGET_BRANCH onto main..."
+            git rebase origin/main
+          else
+            echo "🔀 Merging main into $TARGET_BRANCH..."
+            git merge origin/main -m "Sync: Merge main into $TARGET_BRANCH"
+          fi
+          
+          AFTER_SYNC=$(git rev-parse HEAD)
+          
+          # Check if anything changed
+          if [ "$BEFORE_SYNC" == "$AFTER_SYNC" ]; then
+            echo "✅ Branch is already up to date with main"
+          else
+            echo "✅ Branch synced successfully"
+            
+            # Push changes
+            git push origin "$TARGET_BRANCH"
+            
+            echo ""
+            echo "════════════════════════════════════════"
+            echo "✅ Sync Completed Successfully!"
+            echo "════════════════════════════════════════"
+            echo "🌿 Branch: $TARGET_BRANCH"
+            echo "🔄 Method: $SYNC_TYPE"
+            echo "📊 Changes: $(git log --oneline $BEFORE_SYNC..$AFTER_SYNC | wc -l) commits"
+            echo "════════════════════════════════════════"
+          fi
+
+      # ---------------------------------------------------------
+      # 4️⃣ Handle Conflicts
+      # ---------------------------------------------------------
+      - name: Handle sync failure
+        if: failure()
+        run: |
+          echo "❌ Sync failed - likely due to conflicts"
+          echo ""
+          echo "To resolve manually:"
+          echo "1. git checkout ${{ github.event.inputs.target_branch }}"
+          echo "2. git pull origin ${{ github.event.inputs.target_branch }}"
+          echo "3. git ${{ github.event.inputs.sync_type }} origin/main"
+          echo "4. Resolve conflicts"
+          echo "5. git push origin ${{ github.event.inputs.target_branch }}"
