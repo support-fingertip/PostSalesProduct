@@ -86,7 +86,7 @@ jobs:
             sf sgd source delta \
               --to "HEAD" \
               --from "${{ github.event.before }}" \
-              --output delta-package \
+              --output-dir delta-package \
               --generate-delta \
               --source force-app \
               --ignore .forceignore
