@@ -4,25 +4,90 @@ on:
   push:
     branches:
       - main
+      - develop
+      - 'feature/**'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
+      # ---------------------------------------------------------
+      # 1️⃣ Checkout repository
+      # ---------------------------------------------------------
       - name: Checkout code
-        uses: actions/checkout@v3
-      
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ---------------------------------------------------------
+      # 2️⃣ Install Salesforce CLI
+      # ---------------------------------------------------------
       - name: Install Salesforce CLI
         run: |
           npm install --global @salesforce/cli
           sf --version
-      
+
+      # ---------------------------------------------------------
+      # 3️⃣ Authenticate to Salesforce
+      # ---------------------------------------------------------
       - name: Authenticate to Salesforce
         run: |
           echo "${{ secrets.SALESFORCE_AUTH_URL }}" > authfile.txt
           sf org login sfdx-url --sfdx-url-file authfile.txt --alias deployment-org --set-default
-      
-      - name: Deploy to Salesforce
+          rm -f authfile.txt
+
+      # ---------------------------------------------------------
+      # 4️⃣ Check if any Salesforce metadata changed
+      # ---------------------------------------------------------
+      - name: Check for Salesforce changes
+        id: check_changes
         run: |
-          sf project deploy start --source-dir force-app --target-org deployment-org --wait 30
+          # For first commit on branch
+          if [ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]; then
+            echo "First commit on branch - checking all files"
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }} | grep '^force-app/' || true)
+          else
+            echo "Checking changes between ${{ github.event.before }} and ${{ github.sha }}"
+            CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^force-app/' || true)
+          fi
+          
+          echo "Changed files:"
+          echo "$CHANGED"
+          
+          if [ -z "$CHANGED" ]; then
+            echo "❌ No Salesforce metadata changes found"
+            echo "deploy=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Salesforce metadata changes detected"
+            echo "$CHANGED" > changed-files.txt
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          fi
+
+      # ---------------------------------------------------------
+      # 5️⃣ Deploy to Salesforce
+      # ---------------------------------------------------------
+      - name: Deploy to Salesforce
+        if: steps.check_changes.outputs.deploy == 'true'
+        run: |
+          echo "🚀 Starting deployment..."
+          
+          sf project deploy start \
+            --source-dir force-app \
+            --target-org deployment-org \
+            --wait 30 \
+            --test-level RunLocalTests \
+            --verbose
+          
+          echo "✅ Deployment completed successfully!"
+
+      # ---------------------------------------------------------
+      # 6️⃣ Skip deployment message
+      # ---------------------------------------------------------
+      - name: No changes to deploy
+        if: steps.check_changes.outputs.deploy == 'false'
+        run: |
+          echo "ℹ️ No Salesforce metadata changes detected. Skipping deployment."
+          echo "Only non-Salesforce files were changed in this commit."
