@@ -82,14 +82,16 @@ jobs:
             echo "  From: ${{ github.event.before }}"
             echo "  To:   ${{ github.sha }}"
             
+            # Create output directory first
+            mkdir -p delta-package
+            
             # Generate delta package
             sf sgd source delta \
               --to "HEAD" \
               --from "${{ github.event.before }}" \
-              --output-dir delta-package \
+              --output-dir "./delta-package" \
               --generate-delta \
-              --source force-app \
-              --ignore .forceignore
+              --source force-app
             
             # Check if package.xml exists and has components
             if [ -f "delta-package/package/package.xml" ]; then
@@ -107,7 +109,7 @@ jobs:
                 
                 echo ""
                 echo "📊 Component types:"
-                grep -o "<n>.*</n>" delta-package/package/package.xml | sed 's/<n>//g' | sed 's/<\/name>//g' | sort | uniq -c
+                grep -o "<name>.*</name>" delta-package/package/package.xml | sed 's/<name>//g' | sed 's/<\/name>//g' | sort | uniq -c
               else
                 echo "ℹ️ No Salesforce metadata changes detected"
                 echo "has_changes=false" >> $GITHUB_OUTPUT
