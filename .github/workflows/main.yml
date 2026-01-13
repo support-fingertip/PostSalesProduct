@@ -1,314 +1,56 @@
-name: Deploy to Salesforce
+name: Changeonly Deploy to Salesforce
 
 on:
   push:
     branches:
       - main
-      - develop
-      - 'feature/**'
-  workflow_dispatch:
-    inputs:
-      deploy_all:
-        description: 'Deploy all metadata (ignore delta)'
-        required: false
-        type: boolean
-        default: false
-      skip_tests:
-        description: 'Skip tests (dev only)'
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     
     steps:
-      # ---------------------------------------------------------
-      # 1️⃣ Checkout repository
-      # ---------------------------------------------------------
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
-      # ---------------------------------------------------------
-      # 2️⃣ Install Salesforce CLI and Delta Plugin
-      # ---------------------------------------------------------
-      - name: Install Salesforce CLI and Delta Plugin
+      
+      - name: Install Salesforce CLI
         run: |
-          echo "📦 Installing Salesforce CLI..."
           npm install --global @salesforce/cli
-          
-          echo "📦 Installing sfdx-git-delta plugin..."
-          echo "y" | sf plugins install sfdx-git-delta
-          
-          echo "✅ Installed versions:"
           sf --version
-          sf plugins --core
-
-      # ---------------------------------------------------------
-      # 3️⃣ Authenticate to Salesforce
-      # ---------------------------------------------------------
+      
       - name: Authenticate to Salesforce
         run: |
-          echo "🔐 Authenticating to Salesforce..."
           echo "${{ secrets.SALESFORCE_AUTH_URL }}" > authfile.txt
           sf org login sfdx-url --sfdx-url-file authfile.txt --alias deployment-org --set-default
-          rm -f authfile.txt
-          echo "✅ Authentication successful"
-
-      # ---------------------------------------------------------
-      # 4️⃣ Generate Delta Package
-      # ---------------------------------------------------------
-      - name: Generate delta package
-        id: generate_delta
+      
+      - name: Deploy changed metadata only
         run: |
-          # Check if this is first commit or full deploy requested
-          if [ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ] || [ "${{ inputs.deploy_all }}" == "true" ]; then
-            echo "📦 First commit or full deploy requested"
-            echo "deploy_type=full" >> $GITHUB_OUTPUT
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            
-            if [ "${{ inputs.deploy_all }}" == "true" ]; then
-              echo "🔄 Manual full deployment triggered"
-            else
-              echo "🆕 First commit on branch - deploying all metadata"
-            fi
-          else
-            echo "🔍 Generating delta package for changes between:"
-            echo "  From: ${{ github.event.before }}"
-            echo "  To:   ${{ github.sha }}"
-            
-            # Create output directory first
-            mkdir -p delta-package
-            
-            # Generate delta package
-            sf sgd source delta \
-              --to "HEAD" \
-              --from "${{ github.event.before }}" \
-              --output-dir "./delta-package" \
-              --generate-delta \
-              --source force-app
-            
-            # Check if package.xml exists and has components
-            if [ -f "delta-package/package/package.xml" ]; then
-              # Count members in package.xml
-              MEMBER_COUNT=$(grep -c "<members>" delta-package/package/package.xml || echo "0")
-              
-              if [ "$MEMBER_COUNT" -gt 0 ]; then
-                echo "✅ Delta package generated with $MEMBER_COUNT component(s)"
-                echo "deploy_type=delta" >> $GITHUB_OUTPUT
-                echo "has_changes=true" >> $GITHUB_OUTPUT
-                
-                echo ""
-                echo "📋 Components to deploy:"
-                grep -o "<members>.*</members>" delta-package/package/package.xml | sed 's/<members>//g' | sed 's/<\/members>//g' | sort
-                
-                echo ""
-                echo "📊 Component types:"
-                grep -o "<name>.*</name>" delta-package/package/package.xml | sed 's/<name>//g' | sed 's/<\/name>//g' | sort | uniq -c
-              else
-                echo "ℹ️ No Salesforce metadata changes detected"
-                echo "has_changes=false" >> $GITHUB_OUTPUT
-              fi
-            else
-              echo "ℹ️ No delta package generated - no Salesforce changes"
-              echo "has_changes=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
-      # ---------------------------------------------------------
-      # 5️⃣ Display Deployment Plan
-      # ---------------------------------------------------------
-      - name: Display deployment plan
-        if: steps.generate_delta.outputs.has_changes == 'true'
-        run: |
-          echo "════════════════════════════════════════════════════════"
-          echo "🚀 DEPLOYMENT PLAN"
-          echo "════════════════════════════════════════════════════════"
-          echo "Deployment Type: ${{ steps.generate_delta.outputs.deploy_type }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Skip Tests: ${{ inputs.skip_tests }}"
-          echo ""
+          PREV="${{ github.event.before }}"
+          CURR="${{ github.sha }}"
+      
+          echo "Previous commit: $PREV"
+          echo "Current commit:  $CURR"
           
-          if [ "${{ steps.generate_delta.outputs.deploy_type }}" == "delta" ]; then
-            echo "📦 Delta Package Contents:"
-            cat delta-package/package/package.xml
-          else
-            echo "📦 Deploying full source from: force-app/"
-          fi
-          echo "════════════════════════════════════════════════════════"
-
-      # ---------------------------------------------------------
-      # 6️⃣ Validate Deployment (Check Only)
-      # ---------------------------------------------------------
-      - name: Validate deployment
-        if: steps.generate_delta.outputs.has_changes == 'true' && github.ref_name == 'main'
-        run: |
-          echo "🔍 Validating deployment to production (check-only)..."
+          git fetch --all --prune
           
-          # Determine test level
-          if [ "${{ inputs.skip_tests }}" == "true" ]; then
-            TEST_LEVEL="NoTestRun"
-            echo "⚠️ Skipping tests (not recommended for production!)"
+          if git cat-file -e "$PREV"^{commit}; then
+            echo "Previous commit exists. Using git diff."
+            CHANGED_FILES=$(git diff --name-only "$PREV" "$CURR" | grep '^force-app/' || true)
           else
-            TEST_LEVEL="RunLocalTests"
+            echo "Previous commit not found. Falling back to last commit."
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep '^force-app/' || true)
           fi
+      
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
           
-          # Build validation command
-          if [ "${{ steps.generate_delta.outputs.deploy_type }}" == "delta" ]; then
-            sf project deploy start \
-              --manifest delta-package/package/package.xml \
-              --target-org deployment-org \
-              --dry-run \
-              --test-level $TEST_LEVEL \
-              --wait 30 \
-              --verbose
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No Salesforce metadata changes found. Skipping deploy."
           else
             sf project deploy start \
-              --source-dir force-app \
+              --source-dir $CHANGED_FILES \
               --target-org deployment-org \
-              --dry-run \
-              --test-level $TEST_LEVEL \
-              --wait 30 \
-              --verbose
+              --wait 30
           fi
-          
-          echo "✅ Validation successful!"
-
-      # ---------------------------------------------------------
-      # 7️⃣ Deploy to Salesforce
-      # ---------------------------------------------------------
-      - name: Deploy to Salesforce
-        if: steps.generate_delta.outputs.has_changes == 'true'
-        run: |
-          echo "🚀 Starting deployment..."
-          
-          # Determine test level based on branch and input
-          if [ "${{ inputs.skip_tests }}" == "true" ]; then
-            TEST_LEVEL="NoTestRun"
-            echo "⚠️ WARNING: Deploying without running tests!"
-          elif [ "${{ github.ref_name }}" == "main" ]; then
-            TEST_LEVEL="RunLocalTests"
-            echo "🧪 Running all local tests (production deployment)"
-          else
-            TEST_LEVEL="RunLocalTests"
-            echo "🧪 Running local tests"
-          fi
-          
-          # Deploy based on type
-          if [ "${{ steps.generate_delta.outputs.deploy_type }}" == "delta" ]; then
-            echo "📦 Deploying delta package..."
-            
-            sf project deploy start \
-              --manifest delta-package/package/package.xml \
-              --target-org deployment-org \
-              --test-level $TEST_LEVEL \
-              --wait 30 \
-              --verbose
-          else
-            echo "📦 Deploying all metadata..."
-            
-            sf project deploy start \
-              --source-dir force-app \
-              --target-org deployment-org \
-              --test-level $TEST_LEVEL \
-              --wait 30 \
-              --verbose
-          fi
-          
-          echo ""
-          echo "════════════════════════════════════════════════════════"
-          echo "✅ DEPLOYMENT SUCCESSFUL!"
-          echo "════════════════════════════════════════════════════════"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Type: ${{ steps.generate_delta.outputs.deploy_type }}"
-          echo "════════════════════════════════════════════════════════"
-
-      # ---------------------------------------------------------
-      # 8️⃣ Handle Deployment Failures
-      # ---------------------------------------------------------
-      - name: Handle deployment failure
-        if: failure() && steps.generate_delta.outputs.has_changes == 'true'
-        run: |
-          echo "════════════════════════════════════════════════════════"
-          echo "❌ DEPLOYMENT FAILED"
-          echo "════════════════════════════════════════════════════════"
-          echo ""
-          echo "🔍 Common Issues & Solutions:"
-          echo ""
-          echo "1. ❌ Test Failures"
-          echo "   → Check test results above"
-          echo "   → Fix failing tests in your org"
-          echo "   → Ensure test coverage is >75%"
-          echo ""
-          echo "2. ❌ Layout/Profile Errors"
-          echo "   → Add problematic layouts to .forceignore"
-          echo "   → Example: **/layouts/Case-*.layout-meta.xml"
-          echo ""
-          echo "3. ❌ Missing Dependencies"
-          echo "   → Deploy required fields/objects first"
-          echo "   → Check field references in validation rules"
-          echo ""
-          echo "4. ❌ Invalid Field References"
-          echo "   → Verify field API names are correct"
-          echo "   → Check if fields exist in target org"
-          echo ""
-          echo "5. ❌ Permission Issues"
-          echo "   → Check profile/permission set access"
-          echo "   → Ensure deployment user has admin access"
-          echo ""
-          echo "════════════════════════════════════════════════════════"
-          echo "📦 Delta package saved as artifact for debugging"
-          echo "════════════════════════════════════════════════════════"
-
-      # ---------------------------------------------------------
-      # 9️⃣ Upload Delta Package Artifact
-      # ---------------------------------------------------------
-      - name: Upload delta package
-        if: always() && steps.generate_delta.outputs.deploy_type == 'delta'
-        uses: actions/upload-artifact@v4
-        with:
-          name: delta-package-${{ github.run_number }}
-          path: delta-package/
-          retention-days: 7
-
-      # ---------------------------------------------------------
-      # 🔟 No Changes Message
-      # ---------------------------------------------------------
-      - name: No changes to deploy
-        if: steps.generate_delta.outputs.has_changes == 'false'
-        run: |
-          echo "════════════════════════════════════════════════════════"
-          echo "ℹ️  NO DEPLOYMENT NEEDED"
-          echo "════════════════════════════════════════════════════════"
-          echo ""
-          echo "No Salesforce metadata changes detected in this commit."
-          echo ""
-          echo "Changed files were either:"
-          echo "  • Non-Salesforce files (README, docs, etc.)"
-          echo "  • Excluded by .forceignore"
-          echo "  • Not in force-app/ directory"
-          echo ""
-          echo "This is normal and not an error! ✅"
-          echo "════════════════════════════════════════════════════════"
-
-      # ---------------------------------------------------------
-      # 1️⃣1️⃣ Post Deployment Summary
-      # ---------------------------------------------------------
-      - name: Deployment summary
-        if: always() && steps.generate_delta.outputs.has_changes == 'true'
-        run: |
-          echo "📊 Deployment Summary"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "Status: $(if [ $? -eq 0 ]; then echo '✅ Success'; else echo '❌ Failed'; fi)"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Type: ${{ steps.generate_delta.outputs.deploy_type }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
