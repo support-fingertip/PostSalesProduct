@@ -1,5 +1,6 @@
 /**
  * @description Controller to dynamically fetch objects and fields for email template builder
+ * ENHANCED: Now supports related object relationships for VF page attachments
  * @author Your Name
  * @date 2024
  */
@@ -58,13 +59,41 @@ public with sharing class EmailFieldPickerController {
          */
         public Integer compareTo(Object compareTo) {
             FieldWrapper other = (FieldWrapper) compareTo;
-            if (this.label == null && other.label == null) {
-                return 0;
-            } else if (this.label == null) {
-                return -1;
-            } else if (other.label == null) {
-                return 1;
+            if (this.label == null && other.label == null) return 0;
+            if (this.label == null) return -1;
+            if (other.label == null) return 1;
+            return this.label.toLowerCase().compareTo(other.label.toLowerCase());
+        }
+    }
+    
+    /**
+     * @description Wrapper for relationship information
+     */
+    public class RelationshipWrapper implements Comparable {
+        @AuraEnabled public String label { get; set; }
+        @AuraEnabled public String value { get; set; }
+        @AuraEnabled public String relationshipType { get; set; } // 'Parent' or 'Child'
+        @AuraEnabled public String relationshipName { get; set; }
+        @AuraEnabled public String relatedObjectApi { get; set; }
+        
+        public RelationshipWrapper(String label, String value, String relationshipType, 
+                                   String relationshipName, String relatedObjectApi) {
+            this.label = label;
+            this.value = value;
+            this.relationshipType = relationshipType;
+            this.relationshipName = relationshipName;
+            this.relatedObjectApi = relatedObjectApi;
+        }
+        
+        public Integer compareTo(Object compareTo) {
+            RelationshipWrapper other = (RelationshipWrapper) compareTo;
+            // Sort by type first (Parent before Child), then by label
+            if (this.relationshipType != other.relationshipType) {
+                return this.relationshipType.compareTo(other.relationshipType);
             }
+            if (this.label == null && other.label == null) return 0;
+            if (this.label == null) return -1;
+            if (other.label == null) return 1;
             return this.label.toLowerCase().compareTo(other.label.toLowerCase());
         }
     }
@@ -101,7 +130,7 @@ public with sharing class EmailFieldPickerController {
                 }
             }
             
-            // Sort by label - now works because ObjectWrapper implements Comparable
+            // Sort by label
             objects.sort();
             
         } catch (Exception e) {
@@ -189,7 +218,7 @@ public with sharing class EmailFieldPickerController {
                 }
             }
             
-            // Sort by label - now works because FieldWrapper implements Comparable
+            // Sort by label
             fields.sort();
             
         } catch (AuraHandledException e) {
@@ -281,26 +310,6 @@ public with sharing class EmailFieldPickerController {
                                     fw.isEmail = true;
                                     relatedFields.add(fw);
                                 }
-                                
-                                // Level 3
-                                if (maxLevels >= 3 && l2Field.isReference && 
-                                    String.isNotBlank(l2Field.referenceTo) && 
-                                    String.isNotBlank(l2Field.relationshipName)) {
-                                    
-                                    List<FieldWrapper> level3Fields = getFieldsForObject(l2Field.referenceTo);
-                                    
-                                    for (FieldWrapper l3Field : level3Fields) {
-                                        if (l3Field.isEmail) {
-                                            FieldWrapper fw = new FieldWrapper();
-                                            fw.label = field.label + ' → ' + relField.label + ' → ' + l2Field.label + ' → ' + l3Field.label;
-                                            fw.value = field.relationshipName + '.' + relField.relationshipName + '.' + l2Field.relationshipName + '.' + l3Field.value;
-                                            fw.type = 'EMAIL';
-                                            fw.objectName = objectApiName;
-                                            fw.isEmail = true;
-                                            relatedFields.add(fw);
-                                        }
-                                    }
-                                }
                             }
                         }
                     }
@@ -316,7 +325,7 @@ public with sharing class EmailFieldPickerController {
     // ============ GET MERGE FIELDS ============
     
     /**
-     * @description Get all fields for merge field picker (up to 3 levels)
+     * @description Get all fields for merge field picker (up to 2 levels)
      * @param objectApiName API name of the object
      * @return List of FieldWrapper
      */
@@ -334,7 +343,7 @@ public with sharing class EmailFieldPickerController {
                 }
             }
             
-            // Level 2 & 3: Related fields
+            // Level 2: Related fields
            for (FieldWrapper field : level1Fields) {
                 if (field.isReference && String.isNotBlank(field.referenceTo) && String.isNotBlank(field.relationshipName)) {
                     List<FieldWrapper> level2Fields = getFieldsForObject(field.referenceTo);
@@ -347,21 +356,7 @@ public with sharing class EmailFieldPickerController {
                             fw.type = l2Field.type;
                             fw.objectName = objectApiName;
                             mergeFields.add(fw);
-                        } /*else if (String.isNotBlank(l2Field.referenceTo) && String.isNotBlank(l2Field.relationshipName)) {
-                            // Level 3
-                            List<FieldWrapper> level3Fields = getFieldsForObject(l2Field.referenceTo);
-                            
-                            for (FieldWrapper l3Field : level3Fields) {
-                                if (!l3Field.isReference) {
-                                    FieldWrapper fw = new FieldWrapper();
-                                    fw.label = field.label + ' → ' + l2Field.label + ' → ' + l3Field.label;
-                                    fw.value = field.relationshipName + '.' + l2Field.relationshipName + '.' + l3Field.value;
-                                    fw.type = l3Field.type;
-                                    fw.objectName = objectApiName;
-                                    mergeFields.add(fw);
-                                }
-                            }
-                        }*/
+                        }
                     }
                 }
             }
@@ -515,5 +510,91 @@ public with sharing class EmailFieldPickerController {
         }
         
         return 'Id';
+    }
+    
+    // ============ GET RELATED OBJECTS (PARENT & CHILD) ============
+    
+    /**
+     * @description Get all parent and child relationships for an object
+     * @param objectApiName API name of the object
+     * @return List of RelationshipWrapper
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<RelationshipWrapper> getRelatedObjects(String objectApiName) {
+        List<RelationshipWrapper> relationships = new List<RelationshipWrapper>();
+        
+        try {
+            if (String.isBlank(objectApiName)) {
+                return relationships;
+            }
+            
+            Schema.SObjectType sObjectType = Schema.getGlobalDescribe().get(objectApiName);
+            if (sObjectType == null) {
+                throw new AuraHandledException('Object not found: ' + objectApiName);
+            }
+            
+            Schema.DescribeSObjectResult describeResult = sObjectType.getDescribe();
+            
+            // Get Parent Relationships (Lookup & Master-Detail fields)
+            Map<String, Schema.SObjectField> fieldMap = describeResult.fields.getMap();
+            for (String fieldName : fieldMap.keySet()) {
+                Schema.DescribeFieldResult fieldDescribe = fieldMap.get(fieldName).getDescribe();
+                
+                if (fieldDescribe.getType() == Schema.DisplayType.REFERENCE && 
+                    fieldDescribe.isAccessible() &&
+                    String.isNotBlank(fieldDescribe.getRelationshipName())) {
+                    
+                    List<Schema.SObjectType> referenceTo = fieldDescribe.getReferenceTo();
+                    if (!referenceTo.isEmpty()) {
+                        Schema.SObjectType parentType = referenceTo[0];
+                        Schema.DescribeSObjectResult parentDescribe = parentType.getDescribe();
+                        
+                        // Skip User, RecordType, and other system objects
+                        if (!isSystemObject(parentDescribe.getName())) {
+                            relationships.add(new RelationshipWrapper(
+                                '⬆️ Parent: ' + fieldDescribe.getLabel() + ' (' + parentDescribe.getLabel() + ')',
+                                'parent_' + fieldDescribe.getName(),
+                                'Parent',
+                                fieldDescribe.getRelationshipName(),
+                                parentDescribe.getName()
+                            ));
+                        }
+                    }
+                }
+            }
+            
+            // Get Child Relationships (Related Lists)
+            List<Schema.ChildRelationship> childRelationships = describeResult.getChildRelationships();
+            for (Schema.ChildRelationship childRel : childRelationships) {
+                if (childRel.getRelationshipName() != null && 
+                    childRel.getChildSObject() != null) {
+                    
+                    Schema.DescribeSObjectResult childDescribe = childRel.getChildSObject().getDescribe();
+                    
+                    // Skip if not accessible or is a system object
+                    if (childDescribe.isAccessible() && 
+                        !isSystemObject(childDescribe.getName())) {
+                        
+                        relationships.add(new RelationshipWrapper(
+                            '⬇️ Child: ' + childDescribe.getLabelPlural() + ' (' + childRel.getRelationshipName() + ')',
+                            'child_' + childRel.getRelationshipName(),
+                            'Child',
+                            childRel.getField().getDescribe().getName(), // Foreign key field
+                            childDescribe.getName()
+                        ));
+                    }
+                }
+            }
+            
+            // Sort relationships
+            relationships.sort();
+            
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error fetching related objects: ' + e.getMessage());
+        }
+        
+        return relationships;
     }
 }

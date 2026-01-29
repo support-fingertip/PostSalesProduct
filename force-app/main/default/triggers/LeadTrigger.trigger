@@ -6,5 +6,8 @@ trigger LeadTrigger on Lead__c (before insert,after insert,after update) {
         Project__c pro = [Select Id,Name from Project__c LIMIT 1];
         Unit__c uni = [Select Id,Name from Unit__c LIMIT 1];
         Contact con = [Select Id,LastName from Contact LIMIT 1];
+System.debug('hello');
+System.debug('hello');
+System.debug('hello');
     }
 }
